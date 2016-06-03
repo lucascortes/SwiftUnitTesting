@@ -9,9 +9,11 @@ Objective-C provides a really flexible and vast way of dealing with classes, all
 
 Since Swift was released and developers started migrating their objc code I've seen all kinds of attempts to provide code coverage to their new swift classes. And it also revealed some bad practices that all that objc flexibility allowed or even encouraged.
 
-While I was working on the Restorando iOS app, we decided to start migrating a few classes to swift. All the test suite was written in objc using a testing framework with absolutely no Swift support. After some research we realized that there were no useful alternatives and we found and easy way out: keep testing in objc.
+While I was working on the Restorando iOS app, we decided to start migrating a few classes to swift. All the test suite was written in objc using a testing framework with absolutely no Swift support. After some research we realized that there were no useful alternatives and we found an easy way out: keep testing in objc.
 
 We just had to expose the swift classes to objc by subclassing NSObject or using the @objc directive. Also we had to mark most class members in the Swift classes as `dynamic` to require that access to them be dynamically dispatched through the objc runtime. So we ended up with code like the following:
+
+```dynamic``` _keyword is not widely understood. should we also add a diagram to ilustrate what the this keyword allows?_
 
 ```javascript
 class KittenViewController: UIViewController {
@@ -33,7 +35,7 @@ class KittenViewController: UIViewController {
 
 So that was the first attempt. It didn't look that bad. We were able to test our swift classes and even expose private members.
 
-But quickly Swift evolved and we started to embrace it full potential. Structs, Enums with associated values, tuples, and native types. There was no way to expose that in objc. Then we knew it was time to find a better solution.
+But quickly Swift evolved and we started to embrace it full potential. Structs, Enums with associated values, tuples, and native types. There was no way to expose that in objc _very syntethically, but why?_. Then we knew it was time to find a better solution.
 
 ###Embracing Swift
 
@@ -65,7 +67,7 @@ let book = bookStore.getBook("KRXPU")
 
 That probably will generate a network request. That not only will take time, it will also make us dependent of external services that can fail and affect our test. Also, we won't be able to test different scenarios, like getting a specific book or not founding at all.
 
-So we need to be able to mock `NetworkManager` to provide our customized behavior. The following implementation addresses that
+So we need to be able to mock `NetworkManager` to provide our customized behavior. The following implementation addresses that _I would also add some reference to this article somewhere http://martinfowler.com/articles/mocksArentStubs.html particularly on what's a stub and what's a mock_
 
 ```javascript
 class Store {
@@ -82,6 +84,9 @@ So now we can make
 
 ```javascript
 class NetworkManagerMock: NetworkManager {
+//warning worth mentioning here: mocking by subclassing it's not a garantee that sideefects will not be triggered...
+//Take into account what wasn't overriden or what could be extended in the real class in the future ;)
+
     var lastPath: String?
     var dictionaryToReturn = NSDictionary()
 
@@ -92,7 +97,7 @@ class NetworkManagerMock: NetworkManager {
 }
 ```
 
-And test that the wright path is sent and the wright book is returned.
+And test that the right path is sent and the right book is returned.
 
 ```javascript
 let networkManagerMock = NetworkManagerMock()
