@@ -162,8 +162,18 @@ class BookStore: Store {
 
 ```
 
+The `Store` class only knows it has an instance that conforms to the `NetworkManagerProtocol` protocol. Then `BookStore` uses the method `requestWithPath`, that belongs to that protocol, and it's not aware of the actual class that implements it. So we can create a mock class that conforms to that protocol and doesn't mess with any internal implementation.
 
+For example, the following snippet mocks some methods of `NSNotificationCenter`
 
+```javascript
+protocol NotificationCenterProtocol {
+    func addObserver(observer: AnyObject, selector aSelector: Selector, name aName: String?, object anObject: AnyObject?)
+    func removeObserver(observer: AnyObject)
+}
+
+extension NSNotificationCenter: NotificationCenterProtocol { }
+```
 
 
 ###A dependency chaos
