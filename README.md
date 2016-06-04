@@ -230,19 +230,113 @@ class BookStore: Store {
 
 The `Store` class only knows it has an member that conforms to the `NetworkManagerProtocol` protocol. Then `BookStore` uses the method `requestWithPath`, that belongs to that protocol, and it's not aware of the actual class that implements it. So we can create a mock class that conforms to that protocol and doesn't mess with any internal implementation.
 
-
-
 ###A dependency chaos
 
-//Extremely long injections
+This way of mocking was two major disadvantages.
+
+First of all, we have to **create a protocol for each class** that we want to test. Each time we want to modify some class member we have to do it in two places and, of course, it leads to duplicated code.
+I don't think this is completely a bad idea, but it should be delimited. When we don't know the class implementation, creating protocols is almost required. But if the class is ours and we know how it works, it's not necessary to create a completely new protocol but override de right members.
+
+Then we have a much bigger problem: **Extreme long initializers**. Although we use default parameters in the initializers, in our testing code we must provide our mocks by parameter. Even small project classes have lots of dependencies. Just consider the following example with 5 `structs`.
+
+```javascript
+struct A { let b: B, c: C }
+struct B { let d: D, e: E }
+struct C { let d: D, e: E }
+struct D { }
+struct E { }
+```
+
+If we want to instantiate `A` we end up with the following initialization
+
+```javascript
+let a = A(b: B(d: D(), e: E()), c: C(d: D(), e: E()))
+```
+
+Testing this way would become instantly insane.
+
+###Narrow light of hope
+
+With all those options analyzed, it was clear that a more comprehensive solution was needed. So we tried **dependency injection**. There's an awesome framework by [Yoichi Tagaya](https://github.com/yoichitgy) called [Swinject](https://github.com/Swinject/Swinject). I'll use this framework to show how to test these classes using dependency injection and how to put all the previous techniques in use.
+
+#####The syntax
+
+Although the framework is really flexible, the following explanation only grasps the ground of what can be done with it. You can read more about the it on the [Swinject's Github page](https://github.com/Swinject/Swinject)
+
+We start with these types
+
+```javascript
+struct Book {
+    var code: String
+}
+
+struct Library {
+    var books: [Book]
+}
+```
+
+And create a `Swinject` container
+
+```javascript
+let container = Container()
+```
+We will associate protocols or type declarations with type constructors in containers. For example, the Book type is registered with a Book constructor associated that has the "KPSRC" code.
+
+```javascript
+container.register(Book.self) { _ in Book(code: "KPSRC") }
+```
+
+And we can get the actual instance by using the resolve method on the container
+
+```javascript
+container.resolve(Book.self)!.code //returns "KPSRC"
+```
+
+We could register the Library the following way
+
+```javascript
+container.register(Library.self) { r in Library(books: [r.resolve(Book.self)!]) }
+container.resolve(Library.self)!.books.first!.code //returns "KPSRC"
+```
+
+#####The implementation
+
+We need to access the container from everywhere in the app so it will be a `global` variable.
+As described above, we'll use the `NotificationCenterProtocol` protocol and subclass `NetworkManager`. So we have
+
+```javascript
+var container = Container()
+
+container.register(NotificationCenterProtocol.self) { _ in NSNotificationCenter.defaultNotificationCenter() }
+container.register(NetworkManager.self) { _ in NetworkManager() }
+```
+
+And we just resolve our dependencies inside the class, as private constant properties.
+
+```javascript
+class Store {
+    private let networkManager = container.resolve(NetworkManager.self)!
+    private let notificationCenter = container.resolve(NotificationCenterProtocol.self)!
+}
+```
+
+This way we get a centralized dependencies manager and avoid overloading our initializers.
+
+#####The testing
+
+
+
+###Pros and Cons
 
 //hard to deal with circular injections
 
 //class methods dependencies
 
 
-###Narrow light of hope
 
-// dependency injection
 
-###Pros and Cons
+
+
+
+
+.
