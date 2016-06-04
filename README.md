@@ -232,7 +232,7 @@ The `Store` class only knows it has an member that conforms to the `NetworkManag
 
 ###A dependency chaos
 
-This way of mocking was two major disadvantages.
+This way of mocking has two major disadvantages.
 
 First of all, we have to **create a protocol for each class** that we want to test. Each time we want to modify some class member we have to do it in two places and, of course, it leads to duplicated code.
 I don't think this is completely a bad idea, but it should be delimited. When we don't know the class implementation, creating protocols is almost required. But if the class is ours and we know how it works, it's not necessary to create a completely new protocol but override de right members.
