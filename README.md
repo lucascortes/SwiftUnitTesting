@@ -138,8 +138,22 @@ So we try a new approach
 
 ###A protocol oriented solution
 
-We would like to use a custom mock without all the risks of subclassing.
-Let's analyze this example
+In the following code snippet, the `Store` class has 2 dependencies: `NetworkManager` and `NSNotificationCenter`.
+
+```javascript
+class Store {
+    private let networkManager: NetworkManager
+    private let notificationCenter: NSNotificationCenter
+
+    init(networkManager: NetworkManager = NetworkManager(), notificationCenter: NSNotificationCenter = NSNotificationCenter.defaultCenter()) {
+        self.networkManager = networkManager
+        self.notificationCenter = notificationCenter
+    }
+}
+```
+We would like to test them without all the risks of subclassing. By creating a protocol that encapsulates the interfaces we can communicate between classes by their interfaces and not by their actual type.
+
+`NetworkManager` only has one public method, so let's create a protocol with that and make our `NetworkManager` class conform to it.
 
 ```javascript
 protocol NetworkManagerProtocol {
@@ -149,12 +163,59 @@ protocol NetworkManagerProtocol {
 class NetworkManager: NetworkManagerProtocol {
     func requestWithPath(path: String) -> NSDictionary { return [...] }
 }
+```
 
+So now, our `Store` class only knows about a `NetworkManagerProtocol` protocol.
+
+```javascript
 class Store {
     private let networkManager: NetworkManagerProtocol
+    ...
+}
+```
 
-    init(networkManager: NetworkManagerProtocol = NetworkManager()) {
+But now, `NSNotificationCenter` is a Foundation class. We can use protocol extensions to make `NSNotificationCenter` conform to our protocol. For example, we would like to use these 4 basic methods: `defaultCenter`, `addObserver`, `removeObserver`, `postNotification`.
+
+The `defaultCenter` is a class method, so we use the `static` keyword in the protocol.
+
+```javascript
+protocol NotificationCenterProtocol {
+    static func defaultCenter() -> NSNotificationCenter
+    func addObserver(observer: AnyObject, selector aSelector: Selector, name aName: String?, object anObject: AnyObject?)
+    func postNotification(notification: NSNotification)
+    func removeObserver(observer: AnyObject)
+}
+
+extension NSNotificationCenter: NotificationCenterProtocol { }
+```
+
+But the return type is `NSNotificationCenter`, and we want to make this protocol independent of that class. So we can use that protocol extension with a default implementation to create a similar method and return our protocol.
+
+```javascript
+protocol NotificationCenterProtocol {
+    static func defaultNotificationCenter() -> NotificationCenterProtocol
+    ...
+}
+
+extension NSNotificationCenter: NotificationCenterProtocol {
+    static func defaultNotificationCenter() -> NotificationCenterProtocol {
+        return defaultCenter()
+    }
+}
+```
+
+Note that we don't have to provide an implementation all those methods, they are already implemented in `NSNotificationCenter`, which conforms to our new protocol.
+
+Our Store classes are now fully testable.
+
+```javascript
+class Store {
+    private let networkManager: NetworkManagerProtocol
+    private let notificationCenter: NotificationCenterProtocol
+
+    init(networkManager: NetworkManagerProtocol = NetworkManager(), notificationCenter: NotificationCenterProtocol = NSNotificationCenter.defaultNotificationCenter()) {
         self.networkManager = networkManager
+        self.notificationCenter = notificationCenter
     }
 }
 
@@ -167,18 +228,8 @@ class BookStore: Store {
 
 ```
 
-The `Store` class only knows it has an instance that conforms to the `NetworkManagerProtocol` protocol. Then `BookStore` uses the method `requestWithPath`, that belongs to that protocol, and it's not aware of the actual class that implements it. So we can create a mock class that conforms to that protocol and doesn't mess with any internal implementation.
+The `Store` class only knows it has an member that conforms to the `NetworkManagerProtocol` protocol. Then `BookStore` uses the method `requestWithPath`, that belongs to that protocol, and it's not aware of the actual class that implements it. So we can create a mock class that conforms to that protocol and doesn't mess with any internal implementation.
 
-For example, the following snippet mocks some methods of `NSNotificationCenter`
-
-```javascript
-protocol NotificationCenterProtocol {
-    func addObserver(observer: AnyObject, selector aSelector: Selector, name aName: String?, object anObject: AnyObject?)
-    func removeObserver(observer: AnyObject)
-}
-
-extension NSNotificationCenter: NotificationCenterProtocol { }
-```
 
 
 ###A dependency chaos
