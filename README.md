@@ -344,19 +344,16 @@ class BookStoreTests: XCTestCase {
 }
 ```
 
-In the test method we are able to resolve the dependencies and instantiate any other class using them. This allows as to easily choose which ones we want in each test.
+In the test method we are able to resolve the dependencies and instantiate any other class using them. This allows us to easily choose which ones we want in each test.
 
-###Pros and Cons
+###Every journey comes to an end
 
-//hard to deal with circular injections
+This was my experience finding the best way to test our new Swift code. There are still lots of things I was not able to cover in this post. Probably a next one will cover those.
 
-//class methods dependencies
+There are some interesting issues that came across during development that it's useful to be aware of are:
 
+* Check your code for ***circular dependencies***. In those cases you might need to check your app's architecture first to avoid them when possible.
 
+* ***Class methods should not have dependencies***. If you have dependencies in those classes you probably want to use a `singleton` instead.
 
-
-
-
-
-
-.
+* Be clear on ***what you want to test***. Particular approaches should be considered depending on your app's architecture and the kind of classes you want to test.
