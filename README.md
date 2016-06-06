@@ -324,7 +324,27 @@ This way we get a centralized dependencies manager and avoid overloading our ini
 
 #####The testing
 
+Testing this way becomes extremely simple. In the `setup` of each test we will register each mock dependency in a new container, and they will be resolved in the test.
 
+```javascript
+class BookStoreTests: XCTestCase {
+
+    override func setUp() {
+        super.setUp()
+        var auxContainer = Container()
+
+        container.register(NotificationCenterProtocol.self) { _ in NSNotificationCenterMock.defaultNotificationCenter() }
+        container.register(NetworkManager.self) { _ in NetworkManagerMock() }
+    }
+
+    func testBookStore() {
+        [...]
+        //Here you can use your mock classes
+    }
+}
+```
+
+In the test method we are able to resolve the dependencies and instantiate any other class using them. This allows as to easily choose which ones we want in each test.
 
 ###Pros and Cons
 
