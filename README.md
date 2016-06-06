@@ -1,33 +1,31 @@
 #A Journey into Swift Unit Testing
 
 
-Swift is a clean, safe and modern language that helps us build much better code in many ways. But testing is a dark corner in that new world that is often left forgotten. My aim with this article is to show all the different approaches I found while working with Objective-C and Swift.
+`Swift` is a clean, safe and modern language that helps us build much better code in many ways. But testing is a dark corner in that new world that is often left forgotten. My aim with this article is to show all the different approaches I found while working with Objective-C and Swift.
 
-Objective-C provides a really flexible and vast way of dealing with classes, allowing easy creation of stubs, mocks, and method swizzling. There are also widely used tools like OCMock and Expecta that work exclusively with objc to make testing extremely easy. So basically, with objc, developers have the tools they need to create their test suite.
+`Objective-C` provides a flexible and vast way of working with classes, allowing easy creation of stubs, mocks, and method swizzling. There are also widely used tools like OCMock and Expecta that work exclusively with objc to make testing extremely easy. So basically, with objc, developers have the tools they need to create their test suite.
 
 ###The (tough) transition
 
-Since Swift was released and developers started migrating their objc code I've seen all kinds of attempts to provide code coverage to their new swift classes. And it also revealed some bad practices that all that objc flexibility allowed or even encouraged.
+Since Swift was released and developers started migrating their objc code I've seen all kinds of attempts to provide code coverage to their new Swift classes. It also revealed some bad practices that all that objc flexibility allowed or even encouraged.
 
-While I was working on the Restorando iOS app, we decided to start migrating a few classes to swift. All the test suite was written in objc using a testing framework with absolutely no Swift support. After some research we realized that there were no useful alternatives and we found an easy way out: keep testing in objc.
+While working on the Restorando iOS app, we decided to start migrating a few classes to Swift. All the tests were written in objc using a testing framework with absolutely no Swift support. After some research we realized that there were no suitable alternatives and we found an easy way out: keep testing in objc.
 
-We just had to expose the swift classes to objc by subclassing NSObject or using the @objc directive. Also we had to mark most class members in the Swift classes as `dynamic` to require that access to them be dynamically dispatched through the objc runtime. So we ended up with code like the following:
-
-```dynamic``` _keyword is not widely understood. should we also add a diagram to ilustrate what the this keyword allows?_
+We just had to expose the Swift classes to objc by subclassing NSObject or using the `@objc` directive. Also we had to mark most class members in the Swift classes as `dynamic` to require that access to them be dynamically dispatched through the objc runtime. Basically, it allows to exchange method implementations, which is the way the testing frameworks work under the hood. So we ended up with code like the following:
 
 ```javascript
-class KittenViewController: UIViewController {
-  private dynamic let kittens: [Kitten]
+class BooksViewController: UIViewController {
+  private dynamic let books: [Book]
   [...]
 }
 ```
 ```javascript
-@interface KittenViewController (KittenViewControllerTest)
-@property (nonatomic, strong) NSArray<Kitten>* __nonnull kittens;
+@interface BooksViewController (BooksViewController)
+@property (nonatomic, strong) NSArray<Book>* __nonnull books;
 @end
 
-@implementation KittenViewControllerTests
-- (void)testKittens {
+@implementation BooksViewControllerTests
+- (void)testBooks {
   [...]
 }
 @end
