@@ -31,13 +31,13 @@ class BooksViewController: UIViewController {
 @end
 ```
 
-So that was the first attempt. It didn't look that bad. We were able to test our swift classes and even expose private members.
+So that was the first attempt. It didn't look that bad. We were able to test our Swift classes and even, although not ideal, expose private members.
 
-But quickly Swift evolved and we started to embrace it full potential. Structs, Enums with associated values, tuples, and native types. There was no way to expose that in objc _very syntethically, but why?_. Then we knew it was time to find a better solution.
+But quickly Swift evolved and we started to embrace its full potential. Structs, Enums with associated values, tuples, and native types. There is no way to expose that in objc since it doesn't have those features. Then we knew it was time to find a better solution.
 
 ###Embracing Swift
 
-So we started our research. The following snippet has a simple networking system. The `NetworkManager` class handles all the internet communication, while the `Store` subclasses provide an abstract way of requesting models.
+So we started our research. I'll use the following snippet to describe the process. The code has a simple networking system. The `NetworkManager` class handles all the internet communication, while the `Store` subclasses provide an abstract way of requesting models.
 
 ```javascript
 class NetworkManager {
@@ -63,9 +63,10 @@ let bookStore = BookStore()
 let book = bookStore.getBook("KRXPU")
 ```
 
-That probably will generate a network request. That not only will take time, it will also make us dependent of external services that can fail and affect our test. Also, we won't be able to test different scenarios, like getting a specific book or not founding at all.
+This will generate a network request that not only will take time, it will also make us dependent of external services that can fail and affect our test. Also, we won't be able to test different scenarios, like getting a specific book or not finding it at all.
 
-So we need to be able to mock `NetworkManager` to provide our customized behavior. The following implementation addresses that _I would also add some reference to this article somewhere http://martinfowler.com/articles/mocksArentStubs.html particularly on what's a stub and what's a mock_
+So we need to be able to mock `NetworkManager` to provide our customized behavior. The following implementation addresses that by providing the `NetworkManager` instance in the initializer. This way we can create a `Store` that uses a specific `NetworkManager`.
+ _I would also add some reference to this article somewhere http://martinfowler.com/articles/mocksArentStubs.html particularly on what's a stub and what's a mock_
 
 ```javascript
 class Store {
@@ -78,13 +79,10 @@ class Store {
 }
 ```
 
-So now we can make
+So now we can subclass `NetworkManager` and use properties to check the expected behavior. (As we'll see later, this doesn't guarantee that side effects will not be triggered)
 
 ```javascript
 class NetworkManagerMock: NetworkManager {
-//warning worth mentioning here: mocking by subclassing it's not a garantee that sideefects will not be triggered...
-//Take into account what wasn't overriden or what could be extended in the real class in the future ;)
-
     var lastPath: String?
     var dictionaryToReturn = NSDictionary()
 
@@ -94,8 +92,7 @@ class NetworkManagerMock: NetworkManager {
     }
 }
 ```
-
-And test that the right path is sent and the right book is returned.
+When we use the `requestWithPath` method, we'll save the requested path in the `lastPath` property and we'll return a custom dictionary. This clearly allow us to test that the right path is sent and the right book is returned as the following example shows:
 
 ```javascript
 let networkManagerMock = NetworkManagerMock()
@@ -109,10 +106,10 @@ XCTAssertEqual(networkManagerMock.lastPath, "book/KRXPU")
 XCTAssertEqual(Book(bookDictionary), book)
 ```
 
-And this way we were able to mock `NetworkManager` to test `BookStore`.
+This way we were able to mock `NetworkManager` to test `BookStore`.
 
 
-Actually, we can avoid having to pass the dependency by parameter each time, since we can use default parameters. This way we only have include them when using the mock instance. So we get the following initializer.
+Actually, we can avoid passing the dependency by parameter in the initializer each time since we can use default parameters. So we only have include them when using the mock instance. Then we get the following initializer.
 
 ```javascript
 init(networkManager: NetworkManager = NetworkManager()))
@@ -120,7 +117,7 @@ init(networkManager: NetworkManager = NetworkManager()))
 
 ###Beware of unknown implementations
 
-A lot of the time we will want to mock library classes that we don't know how are implemented. For example, there are several libraries that provide networking access. In these scenarios, the internal implementation may be doing lot of stuff we have no control, like notifications, network requests, etc. For example, the following code
+A lot of the time we will want to mock library classes that we don't know how are implemented. For example, there are several libraries that provide networking access. In these scenarios, the internal implementation may be doing lot of stuff we have no control, like notifications, network requests, etc. For example, consider the following code
 
 ```javascript
 class PrivateNetworkManager {
@@ -130,13 +127,13 @@ class PrivateNetworkManager {
 }
 ```
 
-Given that we are mocking by subclassing, if we don't override the initializer, this class will make a network request.
+Given that we are mocking by subclassing, if we don't override the initializer, this class will make a network request. This could also happen in property observers, extensions, methods, etc.
 
 So we try a new approach
 
 ###A protocol oriented solution
 
-In the following code snippet, the `Store` class has 2 dependencies: `NetworkManager` and `NSNotificationCenter`.
+In the following code snippet, the `Store` class has 2 dependencies: `NetworkManager` and `NSNotificationCenter`. We use the default parameters in the initializers as described above and we get the following class:
 
 ```javascript
 class Store {
@@ -149,9 +146,9 @@ class Store {
     }
 }
 ```
-We would like to test them without all the risks of subclassing. By creating a protocol that encapsulates the interfaces we can communicate between classes by their interfaces and not by their actual type.
+We would like to test `Store` without all the risks of subclassing. By creating a **protocol** that encapsulates the interfaces we can communicate between classes by their interfaces and not by their actual type.
 
-`NetworkManager` only has one public method, so let's create a protocol with that and make our `NetworkManager` class conform to it.
+`NetworkManager` only has one public method, so let's create a *protocol* with it and make our `NetworkManager` class conform to this new *protocol*.
 
 ```javascript
 protocol NetworkManagerProtocol {
@@ -163,7 +160,7 @@ class NetworkManager: NetworkManagerProtocol {
 }
 ```
 
-So now, our `Store` class only knows about a `NetworkManagerProtocol` protocol.
+So now, we make our `Store` class know about a `NetworkManagerProtocol` protocol with the `requestWithPath` method.
 
 ```javascript
 class Store {
@@ -172,9 +169,9 @@ class Store {
 }
 ```
 
-But now, `NSNotificationCenter` is a Foundation class. We can use protocol extensions to make `NSNotificationCenter` conform to our protocol. For example, we would like to use these 4 basic methods: `defaultCenter`, `addObserver`, `removeObserver`, `postNotification`.
+Our other dependency, `NSNotificationCenter`, is a *Foundation* class. We can use *protocol extensions* to make `NSNotificationCenter` conform to our *protocol*. For example, we would like to use these 4 basic methods: `defaultCenter`, `addObserver`, `removeObserver`, `postNotification`.
 
-The `defaultCenter` is a class method, so we use the `static` keyword in the protocol.
+Then we create our *protocol* with those methods and then make `NSNotificationCenter` conform to it.
 
 ```javascript
 protocol NotificationCenterProtocol {
@@ -186,8 +183,9 @@ protocol NotificationCenterProtocol {
 
 extension NSNotificationCenter: NotificationCenterProtocol { }
 ```
+The `defaultCenter` is a class method, so we use the `static` keyword in the protocol. One can quickly see that its return type is `NSNotificationCenter`. We want to make this protocol independent of that class (remember we just want to communicate between protocols).
 
-But the return type is `NSNotificationCenter`, and we want to make this protocol independent of that class. So we can use that protocol extension with a default implementation to create a similar method and return our protocol.
+So we can use the *protocol extension* we just created with a default implementation. We will include a similar method called `defaultNotificationCenter` and make our *protocol* its return type. The default implementation must return the usual `defaultCenter` instance.
 
 ```javascript
 protocol NotificationCenterProtocol {
@@ -202,9 +200,9 @@ extension NSNotificationCenter: NotificationCenterProtocol {
 }
 ```
 
-Note that we don't have to provide an implementation all those methods, they are already implemented in `NSNotificationCenter`, which conforms to our new protocol.
+Note that we don't have to provide an implementation all the methods, they are already implemented in `NSNotificationCenter`, which conforms to our new protocol.
 
-Our Store classes are now fully testable.
+Our `Store` classes are now fully testable.
 
 ```javascript
 class Store {
@@ -226,14 +224,22 @@ class BookStore: Store {
 
 ```
 
-The `Store` class only knows it has an member that conforms to the `NetworkManagerProtocol` protocol. Then `BookStore` uses the method `requestWithPath`, that belongs to that protocol, and it's not aware of the actual class that implements it. So we can create a mock class that conforms to that protocol and doesn't mess with any internal implementation.
+The `Store` class knows it has an member that conforms to the `NetworkManagerProtocol` protocol. Then `BookStore` uses the method `requestWithPath`, that belongs to that protocol, and it's not aware of the actual class that implements it. So we can create a *mock class* that conforms to that protocol and doesn't mess with any internal implementation, just by making:
+
+```javascript
+class NetworkManagerMock: NetworkManagerProtocol {
+    func requestWithPath(path: String) -> NSDictionary {
+        //Some implementation
+    }
+}
+```
 
 ###A dependency chaos
 
 This way of mocking has two major disadvantages.
 
-First of all, we have to **create a protocol for each class** that we want to test. Each time we want to modify some class member we have to do it in two places and, of course, it leads to duplicated code.
-I don't think this is completely a bad idea, but it should be delimited. When we don't know the class implementation, creating protocols is almost required. But if the class is ours and we know how it works, it's not necessary to create a completely new protocol but override de right members.
+First of all, we have to **create a protocol for each class** that we want to test. Each time we want to modify some class member we have to do it in two places (the *class* and the *protocol*) and, of course, it leads to duplicated code.
+I don't think this approach is completely a bad idea, but it should be delimited. When we don't know the class implementation, creating protocols is almost required. But if the class is ours and we know how it works, it's not necessary to create a completely new protocol but override the right members.
 
 Then we have a much bigger problem: **Extreme long initializers**. Although we use default parameters in the initializers, in our testing code we must provide our mocks by parameter. Even small project classes have lots of dependencies. Just consider the following example with 5 `structs`.
 
