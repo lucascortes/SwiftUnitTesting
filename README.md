@@ -346,9 +346,19 @@ class BookStoreTests: XCTestCase {
         container = auxContainer
     }
 
-    func testBookStore() {
+    func testBookStoreExample() {
         [...]
         //Here you can use BookStore with the registered dependencies.
+        let networkManagerStub = container.resolve(NetworkManager.self)!
+
+        let bookStore = BookStore()
+        let bookDictionary = [...] //Custom JSON
+        networkManagerStub.dictionaryToReturn = bookDictionary
+        let book = bookStore.getBook("KRXPU")
+
+
+        XCTAssertEqual(networkManagerStub.lastPath, "book/KRXPU")
+        XCTAssertEqual(Book(bookDictionary), book)
     }
 }
 ```
